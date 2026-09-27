@@ -30,3 +30,16 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Flutter / Dart
+frontend/.dart_tool/
+frontend/.idea/
+frontend/.vscode/
+frontend/build/
+frontend/.packages
+frontend/pubspec.lock
+
+# Sistema operativo y temporales
+.DS_Store
+Thumbs.db
+*.log

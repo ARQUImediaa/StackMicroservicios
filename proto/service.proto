@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package pb;
+
+option go_package = "github.com/ARQUImediaa/StackMicroservicios/backend/pb";
+
+// Servicio gRPC de prueba
+service PingService {
+  rpc Ping (PingRequest) returns (PingResponse);
+}
+
+message PingRequest {
+  string message = 1;
+}
+
+message PingResponse {
+  string reply = 1;
+}
