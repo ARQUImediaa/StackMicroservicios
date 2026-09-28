@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package messaging.v1;
+
+option go_package = "github.com/arquimediaa/proyectomicro/proto/go/messaging/v1;messagingv1";
+
+service MessagingService {
+  rpc SendMessage(SendMessageRequest) returns (Message);
+  rpc GetHistory(GetHistoryRequest) returns (GetHistoryResponse);
+  rpc Subscribe(SubscribeRequest) returns (stream Message);
+}
+
+message Message {
+  string channel_id = 1;
+  string message_id = 2;
+  string user_id = 3;
+  string username = 4;
+  string content = 5;
+  int64 created_at_unix_ms = 6;
+}
+
+message SendMessageRequest {
+  string channel_id = 1;
+  string user_id = 2;
+  string content = 3;
+}
+
+message GetHistoryRequest {
+  string channel_id = 1;
+  string user_id = 2;
+  int32 limit = 3;
+}
+
+message GetHistoryResponse { repeated Message messages = 1; }
+
+message SubscribeRequest {
+  string channel_id = 1;
+  string user_id = 2;
+}

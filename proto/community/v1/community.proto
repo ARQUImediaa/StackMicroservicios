@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package community.v1;
+
+option go_package = "github.com/arquimediaa/proyectomicro/proto/go/community/v1;communityv1";
+
+service CommunityService {
+  rpc CreateUser(CreateUserRequest) returns (User);
+  rpc GetUser(GetUserRequest) returns (User);
+  rpc CreateChannel(CreateChannelRequest) returns (Channel);
+  rpc GetChannel(GetChannelRequest) returns (Channel);
+  rpc JoinChannel(JoinChannelRequest) returns (JoinChannelResponse);
+  rpc ListMyChannels(ListMyChannelsRequest) returns (ListMyChannelsResponse);
+  rpc IsMember(IsMemberRequest) returns (IsMemberResponse);
+}
+
+message User {
+  string user_id = 1;
+  string username = 2;
+  string email = 3;
+  int64 created_at_unix_ms = 4;
+}
+
+message CreateUserRequest {
+  string username = 1;
+  string email = 2;
+}
+
+message GetUserRequest { string user_id = 1; }
+
+message Channel {
+  string channel_id = 1;
+  string name = 2;
+  string description = 3;
+  string created_by = 4;
+  int64 created_at_unix_ms = 5;
+}
+
+message CreateChannelRequest {
+  string name = 1;
+  string description = 2;
+  string created_by = 3;
+}
+
+message GetChannelRequest { string channel_id = 1; }
+
+message JoinChannelRequest {
+  string user_id = 1;
+  string channel_id = 2;
+}
+
+message JoinChannelResponse { bool joined = 1; }
+
+message ListMyChannelsRequest { string user_id = 1; }
+
+message ListMyChannelsResponse { repeated Channel channels = 1; }
+
+message IsMemberRequest {
+  string user_id = 1;
+  string channel_id = 2;
+}
+
+message IsMemberResponse { bool is_member = 1; }

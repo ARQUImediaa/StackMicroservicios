@@ -1,0 +1,10 @@
+.git
+.gitignore
+README.md
+backend
+frontend
+**/build
+**/.dart_tool
+**/node_modules
+**/*.log
+*.iml

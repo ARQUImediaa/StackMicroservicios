@@ -43,3 +43,9 @@ frontend/pubspec.lock
 .DS_Store
 Thumbs.db
 *.log
+
+# Go service build artifacts
+services/*/bin/
+services/*/coverage.out
+services/*/go.work
+services/*/go.work.sum
