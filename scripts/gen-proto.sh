@@ -20,3 +20,14 @@ protoc -I "$ROOT/proto" \
   --go-grpc_out="$ROOT/proto/go" --go-grpc_opt="module=${MODULE}" \
   "$ROOT/proto/community/v1/community.proto" \
   "$ROOT/proto/messaging/v1/messaging.proto"
+# Código Dart para la app Flutter (se versiona en git, para que la app compile sin protoc).
+# Requiere el plugin: dart pub global activate protoc_plugin
+if command -v protoc-gen-dart >/dev/null; then
+  mkdir -p "$ROOT/frontend/lib/src/generated"
+  protoc -I "$ROOT/proto" --dart_out="grpc:$ROOT/frontend/lib/src/generated" \
+    "$ROOT/proto/community/v1/community.proto" \
+    "$ROOT/proto/messaging/v1/messaging.proto"
+  echo "Dart generado en frontend/lib/src/generated"
+else
+  echo "protoc-gen-dart no está instalado: se omite el código Dart" >&2
+fi

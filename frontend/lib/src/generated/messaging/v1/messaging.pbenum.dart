@@ -1,6 +1,6 @@
 // This is a generated file - do not edit.
 //
-// Generated from service.proto.
+// Generated from messaging/v1/messaging.proto.
 
 // @dart = 3.3
 
