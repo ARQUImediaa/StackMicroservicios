@@ -757,7 +757,7 @@ Decisiones del modelo:
 
 ## 4. Implementación
 
-El código está en el repositorio público [ARQUImediaa/StackMicroservicios](https://github.com/ARQUImediaa/StackMicroservicios), rama `main`. Esta sección describe lo que quedó construido y lo contrasta con el diseño de la sección 3.
+El código entregado está en el tag **v1.0.0** del repositorio público: https://github.com/ARQUImediaa/StackMicroservicios/releases/tag/v1.0.0. Esta sección describe lo que quedó construido y lo contrasta con el diseño de la sección 3.
 
 ### 4.1 Estructura del repositorio
 
