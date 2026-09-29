@@ -1,3 +1,4 @@
+
 # Chat por canales — Microservicios con Flutter, Go, gRPC y Cassandra
 
 Taller 01 de Arquitectura de Software. Un chat por canales construido para **mostrar el estilo de microservicios**: dos servicios separados por contexto de negocio, cada uno con su propia base de datos, un API Gateway como único punto de entrada y mensajes en vivo por gRPC server streaming.
@@ -5,7 +6,8 @@ Taller 01 de Arquitectura de Software. Un chat por canales construido para **mos
 ![Arquitectura de alto nivel](docs/diagramas/01-hld.png)
 
 **Guía de arquitectura:** [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md). Explica el orden de arranque y de lectura, los componentes, dónde vive cada decisión en el código, el flujo con logs reales y la demo en 3 actos.
-
+## Link del video de demostración 
+Link: https://youtu.be/oZubs1bwq80?si=Mt2OHTMRtRY6wv9d
 ## Tecnologías
 
 | Capa | Tecnología | Rol |
