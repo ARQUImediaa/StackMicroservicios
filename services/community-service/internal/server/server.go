@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gocql/gocql"
 	communityv1 "github.com/arquimediaa/proyectomicro/proto/go/community/v1"
+	"github.com/gocql/gocql"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -33,24 +33,22 @@ func (s *Server) CreateUser(ctx context.Context, request *communityv1.CreateUser
 	if !usernamePattern.MatchString(username) || !emailPattern.MatchString(email) {
 		return nil, status.Error(codes.InvalidArgument, "username or email is invalid")
 	}
-	var existingID gocql.UUID
-	err := s.session.Query(`SELECT user_id FROM users_by_username WHERE username = ?`, username).WithContext(ctx).Scan(&existingID)
-	if err == nil {
-		return nil, status.Error(codes.AlreadyExists, "username already exists")
-	}
-	if err != gocql.ErrNotFound {
-		return nil, status.Errorf(codes.Unavailable, "check username: %v", err)
-	}
 	userID, err := gocql.RandomUUID()
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "generate user id: %v", err)
 	}
 	createdAt := time.Now().UTC()
+	// Unicidad del nombre con una transacción ligera (LWT): Cassandra no tiene
+	// restricciones UNIQUE, así que se reserva el nombre antes de crear el usuario.
+	applied, err := s.session.Query(`INSERT INTO users_by_username (username, user_id, email, created_at) VALUES (?, ?, ?, ?) IF NOT EXISTS`, username, userID, email, createdAt).WithContext(ctx).MapScanCAS(map[string]interface{}{})
+	if err != nil {
+		return nil, status.Errorf(codes.Unavailable, "reserve username: %v", err)
+	}
+	if !applied {
+		return nil, status.Error(codes.AlreadyExists, "username already exists")
+	}
 	if err := s.session.Query(`INSERT INTO users (user_id, username, email, created_at) VALUES (?, ?, ?, ?)`, userID, username, email, createdAt).WithContext(ctx).Exec(); err != nil {
 		return nil, status.Errorf(codes.Unavailable, "save user: %v", err)
-	}
-	if err := s.session.Query(`INSERT INTO users_by_username (username, user_id, email, created_at) VALUES (?, ?, ?, ?)`, username, userID, email, createdAt).WithContext(ctx).Exec(); err != nil {
-		return nil, status.Errorf(codes.Unavailable, "index user: %v", err)
 	}
 	return &communityv1.User{UserId: userID.String(), Username: username, Email: email, CreatedAtUnixMs: createdAt.UnixMilli()}, nil
 }
@@ -82,24 +80,21 @@ func (s *Server) CreateChannel(ctx context.Context, request *communityv1.CreateC
 	if err := s.session.Query(`SELECT username FROM users WHERE user_id = ?`, creatorID).WithContext(ctx).Scan(&username); err != nil {
 		return nil, queryError("creator", err)
 	}
-	var existingID gocql.UUID
-	err = s.session.Query(`SELECT channel_id FROM channels_by_name WHERE name = ?`, name).WithContext(ctx).Scan(&existingID)
-	if err == nil {
-		return nil, status.Error(codes.AlreadyExists, "channel name already exists")
-	}
-	if err != gocql.ErrNotFound {
-		return nil, status.Errorf(codes.Unavailable, "check channel name: %v", err)
-	}
 	channelID, err := gocql.RandomUUID()
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "generate channel id: %v", err)
 	}
 	createdAt := time.Now().UTC()
+	// Unicidad del nombre del canal con LWT, igual que en CreateUser.
+	applied, err := s.session.Query(`INSERT INTO channels_by_name (name, channel_id, description, created_by, created_at) VALUES (?, ?, ?, ?, ?) IF NOT EXISTS`, name, channelID, description, creatorID, createdAt).WithContext(ctx).MapScanCAS(map[string]interface{}{})
+	if err != nil {
+		return nil, status.Errorf(codes.Unavailable, "reserve channel name: %v", err)
+	}
+	if !applied {
+		return nil, status.Error(codes.AlreadyExists, "channel name already exists")
+	}
 	if err := s.session.Query(`INSERT INTO channels (channel_id, name, description, created_by, created_at) VALUES (?, ?, ?, ?, ?)`, channelID, name, description, creatorID, createdAt).WithContext(ctx).Exec(); err != nil {
 		return nil, status.Errorf(codes.Unavailable, "save channel: %v", err)
-	}
-	if err := s.session.Query(`INSERT INTO channels_by_name (name, channel_id, description, created_by, created_at) VALUES (?, ?, ?, ?, ?)`, name, channelID, description, creatorID, createdAt).WithContext(ctx).Exec(); err != nil {
-		return nil, status.Errorf(codes.Unavailable, "index channel: %v", err)
 	}
 	return &communityv1.Channel{ChannelId: channelID.String(), Name: name, Description: description, CreatedBy: creatorID.String(), CreatedAtUnixMs: createdAt.UnixMilli()}, nil
 }
@@ -128,12 +123,15 @@ func (s *Server) JoinChannel(ctx context.Context, request *communityv1.JoinChann
 	if _, err := s.loadChannel(ctx, channelID); err != nil {
 		return nil, err
 	}
+	// ADR-06: la misma membresía se guarda en dos tablas (una por consulta).
+	// El BATCH logged garantiza que ambas escrituras terminen aplicándose,
+	// aunque sin aislamiento: por un instante una puede verse antes que la otra.
 	joinedAt := time.Now().UTC()
-	if err := s.session.Query(`INSERT INTO memberships_by_user (user_id, channel_id, joined_at) VALUES (?, ?, ?)`, userID, channelID, joinedAt).WithContext(ctx).Exec(); err != nil {
+	batch := s.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
+	batch.Query(`INSERT INTO memberships_by_user (user_id, channel_id, joined_at) VALUES (?, ?, ?)`, userID, channelID, joinedAt)
+	batch.Query(`INSERT INTO memberships_by_channel (channel_id, user_id, joined_at) VALUES (?, ?, ?)`, channelID, userID, joinedAt)
+	if err := s.session.ExecuteBatch(batch); err != nil {
 		return nil, status.Errorf(codes.Unavailable, "save membership: %v", err)
-	}
-	if err := s.session.Query(`INSERT INTO memberships_by_channel (channel_id, user_id, joined_at) VALUES (?, ?, ?)`, channelID, userID, joinedAt).WithContext(ctx).Exec(); err != nil {
-		return nil, status.Errorf(codes.Unavailable, "index membership: %v", err)
 	}
 	return &communityv1.JoinChannelResponse{Joined: true}, nil
 }
@@ -183,7 +181,44 @@ func (s *Server) IsMember(ctx context.Context, request *communityv1.IsMemberRequ
 	if err != nil {
 		return nil, status.Errorf(codes.Unavailable, "check membership: %v", err)
 	}
-	return &communityv1.IsMemberResponse{IsMember: true}, nil
+	var username string
+	if err := s.session.Query(`SELECT username FROM users WHERE user_id = ?`, userID).WithContext(ctx).Scan(&username); err != nil && err != gocql.ErrNotFound {
+		return nil, status.Errorf(codes.Unavailable, "read username: %v", err)
+	}
+	return &communityv1.IsMemberResponse{IsMember: true, Username: username}, nil
+}
+
+// ListUsers lee toda la tabla users. Es aceptable porque la tabla es pequeña
+// en la demo; con muchos usuarios habría que paginar.
+func (s *Server) ListUsers(ctx context.Context, _ *communityv1.ListUsersRequest) (*communityv1.ListUsersResponse, error) {
+	iter := s.session.Query(`SELECT user_id, username, email, created_at FROM users`).WithContext(ctx).Iter()
+	response := &communityv1.ListUsersResponse{}
+	var userID gocql.UUID
+	var username, email string
+	var createdAt time.Time
+	for iter.Scan(&userID, &username, &email, &createdAt) {
+		response.Users = append(response.Users, &communityv1.User{UserId: userID.String(), Username: username, Email: email, CreatedAtUnixMs: createdAt.UnixMilli()})
+	}
+	if err := iter.Close(); err != nil {
+		return nil, status.Errorf(codes.Unavailable, "list users: %v", err)
+	}
+	return response, nil
+}
+
+// ListChannels lee toda la tabla channels (misma justificación que ListUsers).
+func (s *Server) ListChannels(ctx context.Context, _ *communityv1.ListChannelsRequest) (*communityv1.ListChannelsResponse, error) {
+	iter := s.session.Query(`SELECT channel_id, name, description, created_by, created_at FROM channels`).WithContext(ctx).Iter()
+	response := &communityv1.ListChannelsResponse{}
+	var channelID, creatorID gocql.UUID
+	var name, description string
+	var createdAt time.Time
+	for iter.Scan(&channelID, &name, &description, &creatorID, &createdAt) {
+		response.Channels = append(response.Channels, &communityv1.Channel{ChannelId: channelID.String(), Name: name, Description: description, CreatedBy: creatorID.String(), CreatedAtUnixMs: createdAt.UnixMilli()})
+	}
+	if err := iter.Close(); err != nil {
+		return nil, status.Errorf(codes.Unavailable, "list channels: %v", err)
+	}
+	return response, nil
 }
 
 func (s *Server) loadChannel(ctx context.Context, channelID gocql.UUID) (*communityv1.Channel, error) {

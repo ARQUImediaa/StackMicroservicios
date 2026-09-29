@@ -7,10 +7,13 @@ option go_package = "github.com/arquimediaa/proyectomicro/proto/go/community/v1;
 service CommunityService {
   rpc CreateUser(CreateUserRequest) returns (User);
   rpc GetUser(GetUserRequest) returns (User);
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
   rpc CreateChannel(CreateChannelRequest) returns (Channel);
   rpc GetChannel(GetChannelRequest) returns (Channel);
+  rpc ListChannels(ListChannelsRequest) returns (ListChannelsResponse);
   rpc JoinChannel(JoinChannelRequest) returns (JoinChannelResponse);
   rpc ListMyChannels(ListMyChannelsRequest) returns (ListMyChannelsResponse);
+  // Única llamada entre servicios: la usa message-service antes de guardar un mensaje.
   rpc IsMember(IsMemberRequest) returns (IsMemberResponse);
 }
 
@@ -28,6 +31,10 @@ message CreateUserRequest {
 
 message GetUserRequest { string user_id = 1; }
 
+message ListUsersRequest {}
+
+message ListUsersResponse { repeated User users = 1; }
+
 message Channel {
   string channel_id = 1;
   string name = 2;
@@ -43,6 +50,10 @@ message CreateChannelRequest {
 }
 
 message GetChannelRequest { string channel_id = 1; }
+
+message ListChannelsRequest {}
+
+message ListChannelsResponse { repeated Channel channels = 1; }
 
 message JoinChannelRequest {
   string user_id = 1;
@@ -60,4 +71,8 @@ message IsMemberRequest {
   string channel_id = 2;
 }
 
-message IsMemberResponse { bool is_member = 1; }
+message IsMemberResponse {
+  bool is_member = 1;
+  // Nombre del usuario cuando es miembro: message-service lo copia en el mensaje (desnormalización).
+  string username = 2;
+}

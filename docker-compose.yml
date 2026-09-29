@@ -1,8 +1,8 @@
-﻿services:
+services:
   cassandra:
     image: cassandra:5.0
-    ports:
-      - "9042:9042"
+    # Sin puertos publicados: solo los servicios la alcanzan por la red interna.
+    # Para depurar: docker compose exec cassandra cqlsh
     environment:
       CASSANDRA_CLUSTER_NAME: proyectomicro
       MAX_HEAP_SIZE: 512M
@@ -23,9 +23,9 @@
       cassandra:
         condition: service_healthy
     entrypoint: ["/bin/bash", "-ec"]
-    command: >
-      cqlsh cassandra 9042 -f /init/schema.cql &&
-      cqlsh cassandra 9042 -f /init/seed.cql
+    # Una sola cadena: bash -c recibe el script completo (si fuera texto plano,
+    # Compose lo partiría en palabras y cqlsh se conectaría a localhost).
+    command: ["cqlsh cassandra 9042 -f /init/schema.cql && cqlsh cassandra 9042 -f /init/seed.cql"]
     volumes:
       - ./infra/cassandra/schema.cql:/init/schema.cql:ro
       - ./infra/cassandra/seed.cql:/init/seed.cql:ro

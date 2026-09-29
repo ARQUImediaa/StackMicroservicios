@@ -14,9 +14,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gocql/gocql"
 	communityv1 "github.com/arquimediaa/proyectomicro/proto/go/community/v1"
 	"github.com/arquimediaa/proyectomicro/services/community-service/internal/server"
+	"github.com/gocql/gocql"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
@@ -35,7 +35,7 @@ type wrappedServerStream struct {
 func (s *wrappedServerStream) Context() context.Context { return s.ctx }
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil)).With("service", "community-service")
 	cluster := gocql.NewCluster(splitHosts(env("CASSANDRA_HOSTS", "cassandra"))...)
 	cassandraPort, err := strconv.Atoi(env("CASSANDRA_PORT", "9042"))
 	if err != nil {
@@ -49,7 +49,7 @@ func main() {
 	cluster.ConnectTimeout = 10 * time.Second
 	session, err := cluster.CreateSession()
 	if err != nil {
-		logger.Error("connect to Cassandra", "error", err)
+		logger.Error("cassandra.connect_failed", "error", err)
 		os.Exit(1)
 	}
 	defer session.Close()
@@ -70,7 +70,7 @@ func main() {
 		logger.Error("listen", "port", port, "error", err)
 		os.Exit(1)
 	}
-	logger.Info("community service listening", "address", listener.Addr().String())
+	logger.Info("service.listening", "address", listener.Addr().String())
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -125,13 +125,13 @@ func incomingRequestID(ctx context.Context) string {
 }
 
 func logRequest(logger *slog.Logger, requestID, method string, started time.Time, err error) {
-	attributes := []any{"request_id", requestID, "method", method, "duration_ms", time.Since(started).Milliseconds()}
+	attributes := []any{"rpc", method, "request_id", requestID, "duration_ms", time.Since(started).Milliseconds()}
 	if err != nil {
 		attributes = append(attributes, "code", status.Code(err).String(), "error", err.Error())
-		logger.Warn("gRPC request", attributes...)
+		logger.Warn("rpc.end", attributes...)
 		return
 	}
-	logger.Info("gRPC request", attributes...)
+	logger.Info("rpc.end", append(attributes, "code", "OK")...)
 }
 
 func env(key, fallback string) string {

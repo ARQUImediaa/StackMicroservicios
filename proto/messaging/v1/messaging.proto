@@ -5,8 +5,11 @@ package messaging.v1;
 option go_package = "github.com/arquimediaa/proyectomicro/proto/go/messaging/v1;messagingv1";
 
 service MessagingService {
+  // Valida la entrada y la membresía (IsMember en community-service) antes de guardar.
   rpc SendMessage(SendMessageRequest) returns (Message);
+  // Historial del día actual (UTC) del canal. No consulta a community-service.
   rpc GetHistory(GetHistoryRequest) returns (GetHistoryResponse);
+  // Server streaming de los mensajes nuevos del canal. No consulta a community-service.
   rpc Subscribe(SubscribeRequest) returns (stream Message);
 }
 
@@ -27,7 +30,7 @@ message SendMessageRequest {
 
 message GetHistoryRequest {
   string channel_id = 1;
-  string user_id = 2;
+  string user_id = 2; // solo para trazabilidad en los logs; no autoriza
   int32 limit = 3;
 }
 

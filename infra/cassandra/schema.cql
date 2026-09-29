@@ -1,3 +1,4 @@
+-- ADR-02: un keyspace por servicio. community es de community-service; messaging, de message-service.
 CREATE KEYSPACE IF NOT EXISTS community
 WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};
 
@@ -48,12 +49,15 @@ CREATE TABLE IF NOT EXISTS community.memberships_by_channel (
   PRIMARY KEY ((channel_id), user_id)
 ) WITH CLUSTERING ORDER BY (user_id ASC);
 
+-- ADR-03: la partición es un canal en un día (UTC). El día evita que un canal
+-- activo acumule una partición sin límite; message_id (timeuuid) ordena las filas.
 CREATE TABLE IF NOT EXISTS messaging.messages_by_channel (
   channel_id uuid,
+  day date,
   message_id timeuuid,
   user_id uuid,
   username text,
   content text,
   created_at timestamp,
-  PRIMARY KEY ((channel_id), message_id)
+  PRIMARY KEY ((channel_id, day), message_id)
 ) WITH CLUSTERING ORDER BY (message_id DESC);
