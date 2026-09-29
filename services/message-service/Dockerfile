@@ -2,10 +2,10 @@ FROM golang:1.24-alpine AS builder
 
 RUN apk add --no-cache protobuf
 WORKDIR /src
-COPY proto/go/go.mod ./proto/go/go.mod
+COPY proto/go/go.mod proto/go/go.sum ./proto/go/
 COPY proto/community ./proto/community
 COPY proto/messaging ./proto/messaging
-COPY services/message-service/go.mod ./services/message-service/go.mod
+COPY services/message-service/go.mod services/message-service/go.sum ./services/message-service/
 WORKDIR /src/services/message-service
 RUN go mod download
 

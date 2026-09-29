@@ -49,3 +49,6 @@ services/*/bin/
 services/*/coverage.out
 services/*/go.work
 services/*/go.work.sum
+# Código generado desde proto/ (lo regeneran scripts/gen-proto.sh y los Dockerfile)
+proto/go/community/
+proto/go/messaging/

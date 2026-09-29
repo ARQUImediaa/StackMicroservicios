@@ -200,7 +200,7 @@ func (s *Server) loadChannel(ctx context.Context, channelID gocql.UUID) (*commun
 func parseUUID(value, field string) (gocql.UUID, error) {
 	id, err := gocql.ParseUUID(strings.TrimSpace(value))
 	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "%s must be a valid UUID", field)
+		return gocql.UUID{}, status.Errorf(codes.InvalidArgument, "%s must be a valid UUID", field)
 	}
 	return id, nil
 }

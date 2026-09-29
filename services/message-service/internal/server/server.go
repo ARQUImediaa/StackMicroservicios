@@ -107,18 +107,18 @@ func (s *Server) Subscribe(request *messagingv1.SubscribeRequest, stream messagi
 func (s *Server) validateMembership(ctx context.Context, channelValue, userValue string) (gocql.UUID, gocql.UUID, error) {
 	channelID, err := gocql.ParseUUID(strings.TrimSpace(channelValue))
 	if err != nil {
-		return nil, nil, status.Error(codes.InvalidArgument, "channel_id must be a valid UUID")
+		return gocql.UUID{}, gocql.UUID{}, status.Error(codes.InvalidArgument, "channel_id must be a valid UUID")
 	}
 	userID, err := gocql.ParseUUID(strings.TrimSpace(userValue))
 	if err != nil {
-		return nil, nil, status.Error(codes.InvalidArgument, "user_id must be a valid UUID")
+		return gocql.UUID{}, gocql.UUID{}, status.Error(codes.InvalidArgument, "user_id must be a valid UUID")
 	}
 	result, err := s.community.IsMember(ctx, &communityv1.IsMemberRequest{UserId: userID.String(), ChannelId: channelID.String()})
 	if err != nil {
-		return nil, nil, status.Errorf(codes.Unavailable, "check channel membership: %v", err)
+		return gocql.UUID{}, gocql.UUID{}, status.Errorf(codes.Unavailable, "check channel membership: %v", err)
 	}
 	if !result.GetIsMember() {
-		return nil, nil, status.Error(codes.PermissionDenied, "user is not a member of this channel")
+		return gocql.UUID{}, gocql.UUID{}, status.Error(codes.PermissionDenied, "user is not a member of this channel")
 	}
 	return channelID, userID, nil
 }
