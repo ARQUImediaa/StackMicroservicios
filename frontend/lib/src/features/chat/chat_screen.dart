@@ -49,22 +49,36 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
-  Future<void> _loadHistory() async {
+  /// Devuelve true si el historial se pudo leer.
+  Future<bool> _loadHistory() async {
     try {
       final response = await widget.clients.messaging.getHistory(GetHistoryRequest()
         ..channelId = widget.channel.channelId
         ..userId = widget.user.userId
         ..limit = 50);
-      if (!mounted) return;
+      if (!mounted) return true;
       setState(() {
         for (final message in response.messages) {
           _add(message);
         }
       });
       _scrollToEnd();
+      return true;
     } catch (error) {
       debugPrint('[chat] getHistory: $error');
       _showError(error);
+      return false;
+    }
+  }
+
+  /// Botón "recargar": GetHistory solo depende de message-service, así que
+  /// funciona aunque community-service esté caído (acto 2 de la demo).
+  Future<void> _refreshHistory() async {
+    final ok = await _loadHistory();
+    if (ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Historial actualizado: ${_messages.length} mensajes')),
+      );
     }
   }
 
@@ -154,6 +168,9 @@ class _ChatScreenState extends State<ChatScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('# ${widget.channel.name}'),
+        actions: [
+          IconButton(tooltip: 'Recargar historial', onPressed: _refreshHistory, icon: const Icon(Icons.refresh)),
+        ],
         bottom: _reconnecting
             ? const PreferredSize(
                 preferredSize: Size.fromHeight(24),
